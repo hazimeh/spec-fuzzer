@@ -15,6 +15,7 @@ helpers={path="../helpers"}
 core_affinity="0.5.10"
 serde ="1.0.104"
 serde_derive ="1.0.104"
+serde_json ="1.0.103"
 rmp-serde ="0.14.3"
 ron="0.6.2"
 clap="2.33.0"

@@ -503,6 +503,10 @@ impl<Fuzz: FuzzRunner + GetStructStorage> StructFuzzer<Fuzz> {
         }
     }
 
+    fn perform_inference(&mut self) {
+        self.queue.update_inference_map();
+    }
+
     pub fn iter(&mut self) {
         if self.queue.len() == 0 {
             self.perform_gen();
@@ -825,6 +829,7 @@ impl<Fuzz: FuzzRunner + GetStructStorage> StructFuzzer<Fuzz> {
             
             if self.fuzzer_config.thread_id == 0  && i % 500 == 0 {
                 self.perform_import(false);
+                self.perform_inference();
             }
             if self.fuzzer_config.exit_after_first_crash && self.queue.num_crashes() > 0{
                 return;

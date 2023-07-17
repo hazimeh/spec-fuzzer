@@ -8,6 +8,7 @@ use crate::structured_fuzzer::mutator::InputQueue;
 use crate::structured_fuzzer::random::distributions::Distributions;
 use crate::structured_fuzzer::mutator::MutationStrategy;
 use crate::structured_fuzzer::GraphSpec;
+use crate::inference::InferenceMap;
 
 use std::collections::HashMap;
 
@@ -30,6 +31,7 @@ pub struct QueueData {
     bitmap_bits: Vec<usize>,
     bitmaps: BitmapHandler,
     next_input_id: usize,
+    inference_map: Option<InferenceMap>,
 }
 
 #[derive(Clone)]
@@ -66,6 +68,7 @@ impl Queue {
                 bitmap_bits: vec![],
                 bitmaps: BitmapHandler::new(bitmap_size),
                 next_input_id: 0,
+                inference_map: None::<InferenceMap>,
             })),
         };
     }
@@ -293,7 +296,17 @@ impl Queue {
         let id: usize;
         
         if data.favqueue.len() > 0 && rng.gen::<u32>() % 10 <= 6 {
-            id = data.favqueue[rng.gen_range(0, data.favqueue.len())].as_usize();
+            if let Some(m) = &data.inference_map {
+                let groups = m.inputs_to_groups(&data.favqueue);
+                let candidate = rng.choose_from_iter(groups.into_iter()).unwrap();
+                if candidate >= 0 {
+                    id = rng.choose_from_iter(m.members(candidate).into_iter()).unwrap().as_usize();
+                } else {
+                    id = -candidate as usize;
+                }
+            } else {
+                id = data.favqueue[rng.gen_range(0, data.favqueue.len())].as_usize();
+            }
         } else if rng.gen::<u32>() % 8 <= 5 && data.bitmap_bits.len() != 0 {
             let bit = &data.bitmap_bits[rng.gen_range(0, data.bitmap_bits.len())];
             id = data
@@ -302,7 +315,14 @@ impl Queue {
                 .unwrap()
                 .as_usize();
         } else {
-            id = rng.gen_range(0, data.inputs.len());
+            if let Some(m) = &data.inference_map {
+                let groups = m.all_groups();
+                let candidate = rng.choose_from_iter(groups.into_iter()).unwrap();
+                assert!(candidate >= 0);
+                id = rng.choose_from_iter(m.members(candidate).into_iter()).unwrap().as_usize();
+            } else {
+                id = rng.gen_range(0, data.inputs.len());
+            }
         }
         
         //id = rng.gen_range(0, data.inputs.len());
@@ -329,5 +349,19 @@ impl Queue {
             *value += 1;
         }
         *value
+    }
+
+    pub fn update_inference_map(&mut self) {
+        use std::path::Path;
+        use std::fs;
+
+        let name = format!("{}/inference.json", self.workdir);
+        let path = Path::new(&name);
+        if path.exists() {
+            let m = InferenceMap::new_from_json(&name);
+            let mut data = self.data.write().unwrap();
+            data.inference_map = Some(m);
+            fs::remove_file(path).expect("couldn't remove import file");
+        }
     }
 }
