@@ -361,7 +361,8 @@ impl Queue {
             let m = InferenceMap::new_from_json(&name);
             let mut data = self.data.write().unwrap();
             data.inference_map = Some(m);
-            fs::remove_file(path).expect("couldn't remove import file");
+            let new_path = format!("{}.old", path.to_str().unwrap());
+            fs::rename(path, new_path).expect("couldn't move file");
         }
     }
 }
