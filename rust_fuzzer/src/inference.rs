@@ -26,9 +26,11 @@ impl InferenceMap {
             .expect("failed to parse inference JSON");
         let inference: InferenceObject = serde_json::from_value(results).unwrap();
 
-        let mut memberships = MembershipData::new();
-        let groups = inference.0;
+        let groups: GroupData = inference.0.into_iter()
+                                .filter(|(_k, v)| v.len() > 0)
+                                .collect();
 
+        let mut memberships = MembershipData::new();
         for (key, values) in &groups {
             for value in values {
                 memberships.insert(InputID::new(*value), *key);
