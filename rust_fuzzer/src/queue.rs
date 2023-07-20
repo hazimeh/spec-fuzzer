@@ -75,7 +75,7 @@ impl Queue {
 
     pub fn update_total_execs(&self, update: u64){
         let mut w = self.total_execs.write().unwrap();
-        *w += update; 
+        *w += update;
     }
 
     pub fn get_total_execs(&self) -> u64 {
@@ -275,12 +275,12 @@ impl Queue {
                 //SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
                 id,i,_val);
             if !favids.contains(id) { //TODO FIX O(n)
-                favids.push(*id); 
+                favids.push(*id);
             }
         }
         {
             let mut data = self.data.write().unwrap();
-            /* 
+            /*
             println!(
                 "calc favbits ({}) out of {}",
                 favids.len(),
@@ -291,22 +291,27 @@ impl Queue {
         }
     }
 
+    fn choose_input(&self, inputs: &mut dyn Iterator<Item = &InputID>, map: &Option<InferenceMap>, rng: &Distributions) -> usize {
+        if let Some(m) = map {
+            let groups = m.inputs_to_groups(inputs);
+            let candidate = rng.choose_from_iter(groups.into_iter()).unwrap();
+            if candidate >= 0 {
+                rng.choose_from_iter(m.members(candidate).into_iter()).unwrap().as_usize()
+            } else {
+                -candidate as usize
+            }
+        } else {
+            rng.choose_from_iter(inputs).unwrap().as_usize()
+        }
+    }
+
     pub fn schedule(&self, rng: &Distributions) -> Arc<RwLock<Input>> {
         let data = self.data.read().unwrap();
         let id: usize;
-        
+
         if data.favqueue.len() > 0 && rng.gen::<u32>() % 10 <= 6 {
-            if let Some(m) = &data.inference_map {
-                let groups = m.inputs_to_groups(&data.favqueue);
-                let candidate = rng.choose_from_iter(groups.into_iter()).unwrap();
-                if candidate >= 0 {
-                    id = rng.choose_from_iter(m.members(candidate).into_iter()).unwrap().as_usize();
-                } else {
-                    id = -candidate as usize;
-                }
-            } else {
-                id = data.favqueue[rng.gen_range(0, data.favqueue.len())].as_usize();
-            }
+            let mut inputs = data.favqueue.iter();
+            id = self.choose_input(&mut inputs, &data.inference_map, rng);
         } else if rng.gen::<u32>() % 8 <= 5 && data.bitmap_bits.len() != 0 {
             let bit = &data.bitmap_bits[rng.gen_range(0, data.bitmap_bits.len())];
             id = data
@@ -315,16 +320,12 @@ impl Queue {
                 .unwrap()
                 .as_usize();
         } else {
-            if let Some(m) = &data.inference_map {
-                let groups = m.all_groups();
-                let candidate = rng.choose_from_iter(groups.into_iter()).unwrap();
-                assert!(candidate >= 0);
-                id = rng.choose_from_iter(m.members(candidate).into_iter()).unwrap().as_usize();
-            } else {
-                id = rng.gen_range(0, data.inputs.len());
-            }
+            let range = 0 .. data.inputs.len();
+            let ids: Vec<InputID> = range.map(|i| {InputID::new(i)}).collect();
+            let mut inputs = ids.iter();
+            id = self.choose_input(&mut inputs, &data.inference_map, rng);
         }
-        
+
         //id = rng.gen_range(0, data.inputs.len());
         data.inputs[id].clone()
     }

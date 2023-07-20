@@ -43,7 +43,7 @@ impl InferenceMap {
         }
     }
 
-    pub fn inputs_to_groups(&self, inputs: &Vec<InputID>) -> HashSet<GroupID> {
+    pub fn inputs_to_groups(&self, inputs: &mut dyn Iterator<Item = &InputID>) -> HashSet<GroupID> {
         let mut set: HashSet<GroupID> = HashSet::new();
         for id in inputs {
             if let Some(group) = self.memberships.get(id) {
