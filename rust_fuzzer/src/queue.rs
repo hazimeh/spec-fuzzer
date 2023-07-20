@@ -291,14 +291,18 @@ impl Queue {
         }
     }
 
-    fn choose_input(&self, inputs: &mut dyn Iterator<Item = &InputID>, map: &Option<InferenceMap>, rng: &Distributions) -> usize {
+    fn choose_input(&self,
+            inputs: &mut dyn Iterator<Item = &InputID>,
+            map: &Option<InferenceMap>, rng: &Distributions) -> usize {
         if let Some(m) = map {
             let groups = m.inputs_to_groups(inputs);
             let candidate = rng.choose_from_iter(groups.into_iter()).unwrap();
-            if candidate >= 0 {
-                rng.choose_from_iter(m.members(candidate).into_iter()).unwrap().as_usize()
-            } else {
-                -candidate as usize
+            match candidate {
+                Ok(group) =>
+                    rng.choose_from_iter(m.members(group).into_iter())
+                       .unwrap().as_usize(),
+                Err(input) =>
+                    input.as_usize(),
             }
         } else {
             rng.choose_from_iter(inputs).unwrap().as_usize()

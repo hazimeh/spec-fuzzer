@@ -5,7 +5,7 @@ use std::iter::FromIterator;
 use crate::input::InputID;
 
 type InputIDVal = usize;
-type GroupID = isize;
+type GroupID = usize;
 
 type GroupData = HashMap<GroupID, Vec<InputIDVal>>;
 type MembershipData = HashMap<InputID, GroupID>;
@@ -43,13 +43,14 @@ impl InferenceMap {
         }
     }
 
-    pub fn inputs_to_groups(&self, inputs: &mut dyn Iterator<Item = &InputID>) -> HashSet<GroupID> {
-        let mut set: HashSet<GroupID> = HashSet::new();
+    pub fn inputs_to_groups(&self, inputs: &mut dyn Iterator<Item = &InputID>)
+            -> HashSet<Result<GroupID, InputID>> {
+        let mut set: HashSet<Result<GroupID, InputID>> = HashSet::new();
         for id in inputs {
             if let Some(group) = self.memberships.get(id) {
-                set.insert(*group);
+                set.insert(Ok(*group));
             } else {
-                set.insert(-(id.as_usize() as isize));
+                set.insert(Err(*id));
             }
         }
         set
@@ -59,7 +60,7 @@ impl InferenceMap {
         if let Some(inputs) = self.groups.get(&group) {
             inputs.into_iter().map(|val| {InputID::new(*val)}).collect()
         } else {
-            Vec::new()
+            panic!("Invalid group ID: {}", group)
         }
     }
 
