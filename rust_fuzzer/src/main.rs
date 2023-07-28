@@ -230,7 +230,10 @@ fn main() {
                 let num_bits = queue.num_bits();
 
                 if num_bits != num_bits_last {
-                    println!("[!] {}", format!("Execs/sec: {} / Bitmap: {}", total_execs as f32 / queue.get_runtime_as_secs_f32(), num_bits).yellow().bold());   
+                    println!("[!] {}", format!("Execs/sec: {} / Bitmap: {} / Imports: {}",
+                        total_execs as f32 / queue.get_runtime_as_secs_f32(),
+                        num_bits,
+                        queue.get_total_imports()).yellow().bold());   
                     num_bits_last = num_bits;
                 }
     

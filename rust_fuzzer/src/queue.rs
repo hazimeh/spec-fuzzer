@@ -32,6 +32,7 @@ pub struct QueueData {
     bitmaps: BitmapHandler,
     next_input_id: usize,
     inference_map: Option<InferenceMap>,
+    num_imports: usize
 }
 
 #[derive(Clone)]
@@ -69,6 +70,7 @@ impl Queue {
                 bitmaps: BitmapHandler::new(bitmap_size),
                 next_input_id: 0,
                 inference_map: None::<InferenceMap>,
+                num_imports: 0
             })),
         };
     }
@@ -80,6 +82,10 @@ impl Queue {
 
     pub fn get_total_execs(&self) -> u64 {
         *self.total_execs.read().unwrap()
+    }
+
+    pub fn get_total_imports(&self) -> usize {
+        self.data.read().unwrap().num_imports
     }
 
     pub fn get_runtime_as_secs_f32(&self) -> f32 {
@@ -154,6 +160,10 @@ impl Queue {
             let mut reasons = res.take().unwrap_or(vec!());
             reasons.push(StorageReason::Imported);
             res = Some(reasons);
+        } else if let Some(ref mut reasons) = res {
+            if strat == MutationStrategy::Import {
+                reasons.push(StorageReason::Imported);
+            }
         }
         return res;
     }
@@ -213,7 +223,7 @@ impl Queue {
                         match r {
                             StorageReason::Bitmap(reason) => Self::register_best_input_for_bitmap(&mut data, reason.index, id, spec, new_len),
                             StorageReason::IjonMax(reason) => Self::register_best_input_for_ijon_max(&mut data,reason.index, id),
-                            StorageReason::Imported => {},
+                            StorageReason::Imported => data.num_imports += 1,
                         }
                     }
                 }
