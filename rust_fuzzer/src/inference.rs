@@ -56,7 +56,7 @@ impl InferenceMap {
         set
     }
 
-    pub fn members(&self, group: GroupID) -> Vec<InputID> {
+    pub fn members(&self, group: GroupID) -> HashSet<InputID> {
         if let Some(inputs) = self.groups.get(&group) {
             inputs.into_iter().map(|val| {InputID::new(*val)}).collect()
         } else {

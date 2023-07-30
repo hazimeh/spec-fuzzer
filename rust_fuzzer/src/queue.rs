@@ -15,6 +15,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
 
+use iter_tee::Tee;
+
 #[derive(Serialize)]
 pub struct QueueStats {
     num_inputs: usize,
@@ -305,12 +307,20 @@ impl Queue {
             inputs: &mut dyn Iterator<Item = &InputID>,
             map: &Option<InferenceMap>, rng: &Distributions) -> usize {
         if let Some(m) = map {
-            let groups = m.inputs_to_groups(inputs);
+            let mut inputs_iter = Tee::new(inputs);
+            let choose_iter = inputs_iter.clone();
+
+            let groups = m.inputs_to_groups(&mut inputs_iter);
             let candidate = rng.choose_from_iter(groups.into_iter()).unwrap();
             match candidate {
-                Ok(group) =>
-                    rng.choose_from_iter(m.members(group).into_iter())
-                       .unwrap().as_usize(),
+                Ok(group) => {
+                    let members = m.members(group);
+                    let filtered: Vec<&InputID> = choose_iter
+                                                .filter(|v| members.contains(v))
+                                                .collect();
+                    rng.choose_from_iter(filtered.iter())
+                       .unwrap().as_usize()
+                   },
                 Err(input) =>
                     input.as_usize(),
             }
